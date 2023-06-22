@@ -7,8 +7,10 @@
   - [x] Point light;
   - [x] Directional light;
   - [x] Ambient light.
-- [] Diffusion reflection;
+- [x] Diffusion reflection;
+- [x] Specular reflection;
+- [ ] Shadows;
 
-### _An example of a render:_
+#### An example of a render:
 
-![lighting_added](/renders/lighting_added.png)
+![lighting_added](/renders/specular_reflection_added.png)

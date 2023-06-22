@@ -134,10 +134,11 @@ var clamp_color = function(vector) {
     }
 }
 
-var SPHERE = function(center, radius, color) {
+var SPHERE = function(center, radius, color, specular) {
     this.center = center;
     this.radius = radius;
     this.color = color;
+    this.specular = specular;
 }
 
 var LIGHT = function(light_type, intensity, position) {
@@ -156,10 +157,10 @@ var projection_plane_z = 1;
 var camera_position = [0, -0.25, -01];
 var background_color = [0, 0, 0, 255];
 var spheres = [
-    new SPHERE([0, -1, 3], 1, [255, 0, 0]),
-    new SPHERE([2, 0, 4], 1, [0, 0, 255]),
-    new SPHERE([-2, 0, 4], 1, [0, 255, 0]),
-    // new SPHERE([0, -5001.5, 0], 5000, [255, 255, 0])
+    new SPHERE([0, -1, 3], 1, [255, 0, 0], 10),
+    new SPHERE([2, 0, 4], 1, [0, 0, 255], 750),
+    new SPHERE([-2, 0, 4], 1, [0, 255, 0], 2),
+    new SPHERE([0, -32, 0], 30, [255, 255, 0], 1000)
 ];
 var lights = [
     new LIGHT(LIGHT.AMBIENT, 0.2),
@@ -167,7 +168,7 @@ var lights = [
     new LIGHT(LIGHT.DIRECTIONAL, 0.2, [1, 4, 4])
 ];
 
-/**
+/** 
  * Converts canvas pixel coordinates into viewport coordinates
  * @param {number[]} canvas_point - pixel coordinates on the canvas [x, y]
  * @returns {number[]} coordinates on the viewport [x, y, z]
@@ -213,11 +214,14 @@ var intersect_ray_sphere = function(origin, direction, sphere) {
  * Calculates the intensity of light in the scene and the length of the light vector
  * @param {number[]} point coordinates of the 3d point [x,y,z]
  * @param {number[]} normal coordinates of the normal vector [x,y,z]
+ * @param {number[]} view position of the camera [x,y,z]
+ * @param {number} specular value of the specular reflection
  * @returns {number} value of the intensity
  */
-var compute_lighting = function(point, normal) {
+var compute_lighting = function(point, normal, view, specular) {
     var intensity = 0;
     var length_normal = vector_lenght(normal);
+    var length_view = vector_lenght(view);
 
     for (var i = 0; i < lights.length; i++) {
         var light = lights[i];
@@ -232,9 +236,19 @@ var compute_lighting = function(point, normal) {
                 light_vector = light.position;
             }
 
-            var normal_dot_lenght = scalar_product(normal, light_vector);
-            if (normal_dot_lenght > 0) {
-                intensity += light.intensity * normal_dot_lenght / (length_normal * vector_lenght(light_vector));
+            // diffusion reflection
+            var normal_dot_light = scalar_product(normal, light_vector);
+            if (normal_dot_light > 0) {
+                intensity += light.intensity * normal_dot_light / (length_normal * vector_lenght(light_vector));
+            }
+
+            // specular reflection
+            if (specular != -1) {
+                var reflection_vector = vectors_subtraction(vector_multiply_number(2.0*scalar_product(normal, light_vector), normal), light_vector);
+                var reflection_dot_view = scalar_product(reflection_vector, view);
+                if (reflection_dot_view > 0) {
+                    intensity += light.intensity * Math.pow(reflection_dot_view / (vector_lenght(reflection_vector) * length_view), specular);
+                }
             }
         }
     }
@@ -274,7 +288,10 @@ var trace_ray = function(origin, direction, t_min, t_max) {
     var normal = vectors_subtraction(point, closest_sphere.center);
     normal = vector_multiply_number((1.0 / vector_lenght(normal)), normal);
 
-    return vector_multiply_number(compute_lighting(point, normal), closest_sphere.color);
+    var view = vector_multiply_number(-1, direction);
+    var lighting = compute_lighting(point, normal, view, closest_sphere.specular);
+
+    return vector_multiply_number(lighting, closest_sphere.color);
 }
 
 for (var x = -canvas.width / 2; x < canvas.width / 2; x++) {
