@@ -32,6 +32,14 @@ var update_canvas = function() {
     context.putImageData(buffer, 0, 0);
 }
 
+var clear_canvas = function() {
+    canvas.width = document.documentElement.scrollWidth;
+    canvas.height = document.documentElement.scrollHeight; 
+}
+
+// Emulation of an infinitesimal real number
+var EPSILON = 0.001;
+
 /**
  * @param {number[]} v1 - vector in format [vx, vy] or [vx, vy, vz]
  * @param {number[]} v2 - vector in format [vx, vy] or [vx, vy, vz]
@@ -158,7 +166,7 @@ var camera_position = [0, -0.25, -01];
 var background_color = [0, 0, 0, 255];
 var spheres = [
     new SPHERE([0, -1, 3], 1, [255, 0, 0], 10),
-    new SPHERE([2, 0, 4], 1, [0, 0, 255], 750),
+    new SPHERE([2, 0, 4], 1, [0, 0, 255], 150),
     new SPHERE([-2, 0, 4], 1, [0, 255, 0], 2),
     new SPHERE([0, -32, 0], 30, [255, 255, 0], 1000)
 ];
@@ -228,12 +236,19 @@ var compute_lighting = function(point, normal, view, specular) {
         if (light.light_type == LIGHT.AMBIENT) {
             intensity += light.intensity;
         } else {
-            var light_vector;
+            var light_vector, t_max;
             if (light.light_type == LIGHT.POINT) {
                 light_vector = vectors_subtraction(light.position, point);
+                t_max = 1.0;
             } else {
                 // light is directional
                 light_vector = light.position;
+                t_max = Infinity;
+            }
+
+            var blocker = closest_intersection(point, light_vector, EPSILON, t_max);
+            if (blocker) {
+                continue;
             }
 
             // diffusion reflection
@@ -256,6 +271,37 @@ var compute_lighting = function(point, normal, view, specular) {
 }
 
 /**
+ * Calculates the closest intersection of the sphere with the ray for shadow rendering
+ * @param {number[]} origin - camera position [x, y, z]
+ * @param {number[]} direction - viewport coordinates [x, y, z]
+ * @param {number} t_min - point of intersection with sphere
+ * @param {number} t_max - point of intersection with sphere 
+ * @returns {[]} [closest_sphere, closest_t]
+ */
+var closest_intersection = function(origin, direction, t_min, t_max) {
+    var closest_t = Infinity;
+    var closest_sphere = null;
+
+    for (var i = 0; i < spheres.length; i++) {
+        var t12 = intersect_ray_sphere(origin, direction, spheres[i]);
+        if (t12[0] < closest_t && t12[0] < t_max && t_min < t12[0]) {
+            closest_t = t12[0];
+            closest_sphere = spheres[i];
+        }
+        if (t12[1] < closest_t && t12[1] < t_max && t_min < t12[1]) {
+            closest_t = t12[1];
+            closest_sphere = spheres[i];
+        }
+    }
+
+    if (closest_sphere) {
+        return [closest_sphere, closest_t];
+    }
+
+    return null;
+}
+
+/**
  * Calculates the intersections of the ray with each sphere and returns her color at the closest intersection in the requested range from t_min till t_max.
  * Color in format [R, G, B] without alpha channel!
  * @param {number[]} origin - camera position [x, y, z] 
@@ -265,24 +311,14 @@ var compute_lighting = function(point, normal, view, specular) {
  * @returns {number[]} [R, G, B, A]
  */
 var trace_ray = function(origin, direction, t_min, t_max) {
-    var closest_t = Infinity;
-    var closest_sphere = null;
+    var intersection = closest_intersection(origin, direction, t_min, t_max);
 
-    for (var i = 0; i < spheres.length; i++) {
-        var t12 = intersect_ray_sphere(origin, direction, spheres[i]);
-        if (t_min < t12[0] && t12[0] < t_max && t12[0] < closest_t) {
-            closest_t = t12[0];
-            closest_sphere = spheres[i];
-        }
-        if (t_min < t12[1] && t12[1] < t_max && t12[1] < closest_t) {
-            closest_t = t12[1];
-            closest_sphere = spheres[i];
-        }
-    }
-
-    if (closest_sphere == null) {
+    if (!intersection) {
         return background_color;
     }
+
+    var closest_t = intersection[1];
+    var closest_sphere = intersection[0];
 
     var point = vectors_addition(origin, vector_multiply_number(closest_t, direction));
     var normal = vectors_subtraction(point, closest_sphere.center);
@@ -294,12 +330,25 @@ var trace_ray = function(origin, direction, t_min, t_max) {
     return vector_multiply_number(lighting, closest_sphere.color);
 }
 
-for (var x = -canvas.width / 2; x < canvas.width / 2; x++) {
-    for (var y = -canvas.height / 2; y < canvas.height / 2; y++) {
-        var direction = canvas_to_viewport([x, y]);
-        var color = trace_ray(camera_position, direction, 1, Infinity);
-        put_pixel(x, y, clamp_color(color));
-    }
+var set_shadow_epsilon = function(epsilon) {
+    EPSILON = epsilon;
+    render();
 }
 
-update_canvas();
+var render = function() {
+    clear_canvas();
+
+    setTimeout( function() {
+        // main loop
+        for (var x = -canvas.width / 2; x < canvas.width / 2; x++) {
+            for (var y = -canvas.height / 2; y < canvas.height / 2; y++) {
+                var direction = canvas_to_viewport([x, y]);
+                var color = trace_ray(camera_position, direction, 1, Infinity);
+                put_pixel(x, y, clamp_color(color));
+            }
+        }
+        update_canvas();
+    }, 0);
+}
+
+render();

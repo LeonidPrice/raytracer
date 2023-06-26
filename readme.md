@@ -9,8 +9,9 @@
   - [x] Ambient light.
 - [x] Diffusion reflection;
 - [x] Specular reflection;
-- [ ] Shadows;
+- [x] Shadows;
+- [ ] Reflections;
 
 #### An example of a render:
 
-![lighting_added](/renders/specular_reflection_added.png)
+![lighting_added](/renders/shadow_added.png)
