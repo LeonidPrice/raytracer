@@ -16,4 +16,4 @@
 
 #### An example of a render:
 
-![lighting_added](/renders/shadow_added.png)
+![reflections_added](/renders/reflections_added.png)
