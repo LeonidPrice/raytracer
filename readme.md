@@ -2,7 +2,9 @@
 
 ## Supports the following functions:
 
-- [x] Drawing primitives (spheres);
+- [x] Drawing primitives;
+  - [x] Spheres;
+  - [ ] Polygons;
 - [x] Lighting rendering:
   - [x] Point light;
   - [x] Directional light;
@@ -10,7 +12,7 @@
 - [x] Diffusion reflection;
 - [x] Specular reflection;
 - [x] Shadows;
-- [ ] Reflections;
+- [x] Reflections;
 
 #### An example of a render:
 
